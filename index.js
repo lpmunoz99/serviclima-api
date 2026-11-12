@@ -1,42 +1,28 @@
 // index.js
-// Punto de entrada de serviclima-api.
-// Carga las órdenes de datos/db.json en memoria y las sirve por HTTP.
+// Punto de entrada de serviclima-api: arma la aplicación y la pone a escuchar.
+// Ya no tiene rutas ni datos: eso vive en src/.
+// Antes de ejecutar: copie .env.example como .env
 // Ejecute: npm run dev
-
 import express from 'express';
-import { readFile } from 'node:fs/promises';
-import path from 'node:path';
-
-// El mismo puerto que usaba json-server: el frontend ya apunta aquí
-const PUERTO = 3001;
-
-// Ruta absoluta a datos/db.json, armada desde la carpeta de este archivo
-const rutaDatos = path.join(import.meta.dirname, 'datos', 'db.json');
-
-// Se lee una sola vez, al arrancar. Desde aquí los datos viven en memoria.
-const contenido = await readFile(rutaDatos, 'utf8');
-const { ordenes } = JSON.parse(contenido);
-
+import rutasOrdenes from './src/rutas/ordenes.js';
+import rutasCatalogos from './src/rutas/catalogos.js';
+import { registrarPeticion } from './src/middlewares/registrar-peticion.js';
+import { permitirOrigen } from './src/middlewares/permitir-origen.js';
+import { noEncontrado } from './src/middlewares/no-encontrado.js';
+import { manejarErrores } from './src/middlewares/manejar-errores.js';
+const PUERTO = process.env.PUERTO; // de .env, gracias a --env-file
 const app = express();
-
-// GET /ordenes: el arreglo completo
-app.get('/ordenes', (req, res) => {
-  res.json(ordenes);
-});
-
-// GET /ordenes/:id: una orden; 404 si no existe
-app.get('/ordenes/:id', (req, res) => {
-  const id = Number(req.params.id); // params llega como texto: "8", no 8
-  const orden = ordenes.find((o) => o.id === id);
-
-  if (!orden) {
-    return res.status(404).json({ error: `No existe la orden ${req.params.id}` });
-  }
-
-  res.json(orden);
-});
-
+// Middlewares antes de las rutas, en el orden en que corren
+app.use(registrarPeticion); // 1. anota cada petición
+app.use(permitirOrigen); // 2. CORS para el frontend
+app.use(express.json()); // 3. cuerpo JSON en req.body
+// Rutas
+app.use('/ordenes', rutasOrdenes);
+app.use(rutasCatalogos); // /departamentos y /categorias
+// Middlewares después de las rutas
+app.use(noEncontrado); // 4. ninguna ruta atendió: 404
+app.use(manejarErrores); // 5. siempre el último
 app.listen(PUERTO, () => {
-  console.log(`Órdenes cargadas: ${ordenes.length}`);
-  console.log(`API de Serviclima en http://localhost:${PUERTO}`);
+ console.log(`API de Serviclima en http://localhost:${PUERTO}`);
+ console.log(`Origen permitido: ${process.env.ORIGEN_FRONTEND}`);
 });
