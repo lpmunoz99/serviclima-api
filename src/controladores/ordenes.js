@@ -10,9 +10,10 @@ import { ErrorHttp } from '../errores.js';
 function noExiste(id) {
  return new ErrorHttp(404, `No existe la orden ${id}`);
 }
-// GET /ordenes
+// GET /ordenes y GET /ordenes?estado=pendiente
+// req.query trae los filtros; el servicio decide cuáles usa
 export function listarOrdenes(req, res) {
- res.json(servicio.listar());
+    res.json(servicio.listar(req.query));
 }
 // GET /ordenes/:id
 export function obtenerOrden(req, res) {
